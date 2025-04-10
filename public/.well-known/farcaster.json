@@ -1,0 +1,18 @@
+{
+    "accountAssociation": {
+    "header": "eyJmaWQiOjM1MDkxMSwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDJGREVmM0Y0NzBlQ2QyQmM5YTk3NzU2OEM0M0FEMzg2MGMxNjExRDgifQ",
+    "payload": "eyJkb21haW4iOiJjb21wdS1ib3JnLWJvb3N0LnZlcmNlbC5hcHAifQ",
+    "signature": "MHg0OTI0ZmM0MTI1NTU2MzM3ZjI1M2NiMzg5YTYzMWViNDU1NTExNDgzNDg0Mzg0ZmE5MmUxZmIxNTM4MDJkYzU3MGQxMzlkYzliZDg4Nzk0ZmQyMDQ0ZmZhYWVmOWViMGJmNDBjODU5OWU3ZWYyMWRmNzEzZjIwOWUwMDllMThmYzFi"
+  },
+      "frame": {
+        "version": "1",
+        "name": "Borg Boost",
+        "iconUrl": "https://compu-borg-boost.vercel.app/icon.png",
+        "homeUrl": "https://compu-borg-boost.vercel.app",
+        "imageUrl": "https://compu-borg-boost.vercel.app/image.image.png",
+        "buttonTitle": "Borg Boost",
+        "splashImageUrl": "https://compu-borg-boost.vercel.app/icon.png",
+        "splashBackgroundColor": "#ffffff",
+        "webhookUrl": "https://api.neynar.com/f/app/d9cc7795-7504-4a3a-ac5e-d2440a05092a/event"
+      }
+    }

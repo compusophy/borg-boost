@@ -1,0 +1,31 @@
+{
+  "name": "comp-qwik-smpl",
+  "description": "A simple Farcaster Frame app built with Qwik",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm build.types && pnpm build.client && pnpm build.server",
+    "build.client": "vite build",
+    "build.preview": "vite build --ssr src/entry.preview.tsx",
+    "build.server": "vite build -c adapters/vercel-edge/vite.config.ts",
+    "build.types": "tsc --incremental --noEmit",
+    "deploy": "vercel deploy",
+    "dev": "vite --mode ssr",
+    "fmt": "prettier --write .",
+    "fmt.check": "prettier --check .",
+    "preview": "qwik build preview && vite preview --open",
+    "start": "vite --open --mode ssr",
+    "qwik": "qwik"
+  },
+  "devDependencies": {
+    "@builder.io/qwik": "^1.12.1",
+    "@builder.io/qwik-city": "^1.12.1",
+    "@types/node": "20.14.11",
+    "prettier": "3.3.3",
+    "typescript": "5.4.5",
+    "undici": "^7.5.0",
+    "vercel": "^29.1.1",
+    "vite": "5.3.5",
+    "vite-tsconfig-paths": "^4.2.1"
+  }
+}

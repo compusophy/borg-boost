@@ -32,6 +32,7 @@ export const WalletConnect = component$(() => {
   const ethBalance = useSignal('');
   const usdcBalance = useSignal('');
   const isSending = useSignal(false);
+  const showWallet = useSignal(true);
 
   // USDC contract address on Base
   const USDC_CONTRACT = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
@@ -448,53 +449,58 @@ export const WalletConnect = component$(() => {
 
   return (
     <div class="wallet-section">
-      <h3>Wallet Connection</h3>
-      
-      {!isConnected.value ? (
-        <div>
-          <button 
-            class="wallet-button"
-            onClick$={connectWallet}
-            disabled={isConnecting.value}
-          >
-            {isConnecting.value ? 'Connecting...' : 'Connect Wallet'}
-          </button>
-          
-          {error.value && (
-            <div class="error-message">{error.value}</div>
-          )}
-        </div>
-      ) : (
-        <div class="wallet-info">
-          <div class="address-display">
-            <strong>Address:</strong> {truncateAddress(address.value)}
-          </div>
-          <div class="network-display">
-            <strong>Network:</strong> {getChainName()}
-          </div>
-          <div class="balance-display">
-            <strong>ETH Balance:</strong> {ethBalance.value || '0.0000'} ETH
-          </div>
-          <div class="balance-display">
-            <strong>USDC Balance:</strong> {usdcBalance.value || '0.00'} USDC
-          </div>
-          <div class="wallet-actions">
+      <div 
+        class="wallet-header"
+        onClick$={() => {
+          showWallet.value = !showWallet.value;
+          localStorage.setItem('show-wallet', showWallet.value.toString());
+        }}
+      >
+        <span class={`chevron ${showWallet.value ? 'rotated' : ''}`}>▶</span>
+        <h3>Wallet</h3>
+      </div>
+
+      <div class={`wallet-content ${showWallet.value ? 'visible' : ''}`}>
+        {!isConnected.value ? (
+          <div>
             <button 
-              class="transaction-button"
-              onClick$={sendTransaction}
+              class="wallet-button"
+              onClick$={connectWallet}
+              disabled={isConnecting.value}
             >
-              Send Test Transaction
+              {isConnecting.value ? 'Connecting...' : 'Connect Wallet'}
             </button>
-            <button 
-              class="transaction-button"
-              onClick$={sendEthToSelf}
-              disabled={isSending.value}
-            >
-              {isSending.value ? 'Sending...' : 'Send 0.001 ETH to Self'}
-            </button>
+            
+            {error.value && (
+              <div class="error-message">{error.value}</div>
+            )}
           </div>
-        </div>
-      )}
+        ) : (
+          <div class="wallet-info">
+            <div class="address-display">
+              <strong>Address:</strong> {truncateAddress(address.value)}
+            </div>
+            <div class="network-display">
+              <strong>Network:</strong> {getChainName()}
+            </div>
+            <div class="balance-display">
+              <strong>ETH Balance:</strong> {ethBalance.value || '0.0000'} ETH
+            </div>
+            <div class="balance-display">
+              <strong>USDC Balance:</strong> {usdcBalance.value || '0.00'} USDC
+            </div>
+            <div class="wallet-actions">
+              <button 
+                class="transaction-button"
+                onClick$={sendEthToSelf}
+                disabled={isSending.value}
+              >
+                {isSending.value ? 'Sending...' : 'Send 0.001 ETH to Self'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }); 

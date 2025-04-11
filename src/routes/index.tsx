@@ -83,7 +83,7 @@ export default component$(() => {
       padding: 2rem;
     }
 
-    .admin-section {
+    .admin-section, .wallet-section {
       margin-top: 2rem;
       padding: 1.5rem;
       background: white;
@@ -91,21 +91,104 @@ export default component$(() => {
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 
-    .admin-header {
+    .admin-header, .wallet-header {
       display: flex;
       align-items: center;
       gap: 1rem;
       margin-bottom: 1rem;
       cursor: pointer;
       user-select: none;
+      height: 2.5rem;
     }
 
-    .admin-content {
+    .admin-header h3, .wallet-header h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 500;
+    }
+
+    .admin-content, .wallet-content {
       display: none;
     }
 
-    .admin-content.visible {
+    .admin-content.visible, .wallet-content.visible {
       display: block;
+    }
+
+    .wallet-button {
+      background-color: #000;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+
+    .wallet-button:hover {
+      background-color: #333;
+      transform: translateY(-1px);
+    }
+
+    .wallet-button:active {
+      transform: translateY(0);
+    }
+
+    .wallet-button:disabled {
+      background-color: #666;
+      cursor: not-allowed;
+    }
+
+    .error-message {
+      color: #dc2626;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .wallet-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .address-display,
+    .network-display,
+    .balance-display {
+      padding: 0.75rem;
+      background: #f8f8f8;
+      border-radius: 6px;
+    }
+
+    .wallet-actions {
+      margin-top: 1rem;
+    }
+
+    .transaction-button {
+      background-color: #000;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+
+    .transaction-button:hover {
+      background-color: #333;
+      transform: translateY(-1px);
+    }
+
+    .transaction-button:active {
+      transform: translateY(0);
+    }
+
+    .transaction-button:disabled {
+      background-color: #666;
+      cursor: not-allowed;
     }
 
     .metrics-container, .demo-container {
@@ -181,16 +264,13 @@ export default component$(() => {
       border-top: 1px solid #eee;
     }
 
-    .wallet-section {
-      margin-top: 2rem;
-      padding: 1.5rem;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-
     .chevron {
       transition: transform 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
     }
 
     .chevron.rotated {

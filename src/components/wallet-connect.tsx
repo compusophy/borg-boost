@@ -16,6 +16,20 @@ interface EthereumProvider {
   removeAllListeners?: () => void;
 }
 
+// Type for Frame SDK
+interface FrameSDK {
+  wallet?: {
+    ethProvider?: EthereumProvider;
+  };
+}
+
+// Type for Frame window object
+interface FrameWindow {
+  frame?: {
+    sdk?: FrameSDK;
+  };
+}
+
 export const WalletConnect = component$(() => {
   const address = useSignal('');
   const chainId = useSignal(0);
@@ -28,11 +42,27 @@ export const WalletConnect = component$(() => {
   // USDC contract address on Base
   const USDC_CONTRACT = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 
+  // Function to save connection state
+  const saveConnectionState = $(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('walletConnected', 'true');
+      localStorage.setItem('walletAddress', address.value);
+    }
+  });
+
+  // Function to clear connection state
+  const clearConnectionState = $(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('walletConnected');
+      localStorage.removeItem('walletAddress');
+    }
+  });
+
   // Function to fetch ETH balance
   const fetchEthBalance = $(async (address: string) => {
     try {
-      const ethereum = (window.frame?.ethereum || window.ethereum) as EthereumProvider | undefined;
-      if (!ethereum) return;
+      const provider = sdk?.wallet?.ethProvider || window.ethereum;
+      if (!provider) return;
 
       const publicClient = createPublicClient({
         chain: base,
@@ -53,8 +83,8 @@ export const WalletConnect = component$(() => {
   // Function to fetch USDC balance
   const fetchUsdcBalance = $(async (address: string) => {
     try {
-      const ethereum = (window.frame?.ethereum || window.ethereum) as EthereumProvider | undefined;
-      if (!ethereum) return;
+      const provider = sdk?.wallet?.ethProvider || window.ethereum;
+      if (!provider) return;
 
       const publicClient = createPublicClient({
         chain: base,
@@ -88,56 +118,67 @@ export const WalletConnect = component$(() => {
   useVisibleTask$(({ cleanup }) => {
     const checkExistingConnection = async () => {
       try {
-        // Try to get the Frame SDK wallet provider first
-        if (sdk && sdk.wallet && sdk.wallet.ethProvider) {
-          console.log("Using Farcaster Frame SDK provider (sdk.wallet.ethProvider)");
+        // Check localStorage first
+        const wasConnected = typeof window !== 'undefined' && localStorage.getItem('walletConnected') === 'true';
+        const savedAddress = typeof window !== 'undefined' ? localStorage.getItem('walletAddress') : null;
+
+        // Check if we're in a Frame context
+        const isInFrame = sdk?.wallet?.ethProvider;
+        
+        if (isInFrame) {
+          console.log("Using Farcaster Frame SDK provider");
           const provider = sdk.wallet.ethProvider;
           
-          // Create wallet client
-          const walletClient = createWalletClient({
-            chain: base,
-            transport: custom(provider)
-          });
-
-          // Request accounts
-          const addresses = await walletClient.requestAddresses();
-          
-          if (addresses && addresses.length > 0) {
-            const connectedAddr = addresses[0];
-            address.value = connectedAddr;
-            isConnected.value = true;
+          if (provider) {
+            // Check for existing accounts first
+            const accounts = await provider.request({ method: 'eth_accounts' });
             
-            // Fetch balances
-            fetchEthBalance(connectedAddr);
-            fetchUsdcBalance(connectedAddr);
-            
-            // Get chain ID
-            const chainIdHex = await provider.request({ method: 'eth_chainId' });
-            if (chainIdHex) {
-              chainId.value = parseInt(chainIdHex, 16);
+            if (accounts && accounts.length > 0) {
+              const connectedAddr = accounts[0];
+              address.value = connectedAddr;
+              isConnected.value = true;
+              saveConnectionState();
+              
+              // Fetch balances
+              fetchEthBalance(connectedAddr);
+              fetchUsdcBalance(connectedAddr);
+              
+              // Get chain ID
+              const chainIdHex = await provider.request({ method: 'eth_chainId' });
+              if (chainIdHex) {
+                chainId.value = parseInt(chainIdHex, 16);
+              }
+              
+              console.log('Automatically connected to Frame wallet:', connectedAddr);
+            } else if (wasConnected && savedAddress) {
+              // If we have a saved connection but no active accounts, try to reconnect
+              try {
+                await provider.request({ method: 'eth_requestAccounts' });
+                address.value = savedAddress;
+                isConnected.value = true;
+                saveConnectionState();
+                fetchEthBalance(savedAddress);
+                fetchUsdcBalance(savedAddress);
+              } catch (err) {
+                console.error('Error reconnecting:', err);
+                clearConnectionState();
+              }
             }
-            
-            console.log('Automatically connected to Frame wallet:', connectedAddr);
           }
         } 
-        // If not in Frame, try standard browser provider
+        // If not in Frame or Frame SDK not available, try standard browser provider
         else if (typeof window !== 'undefined' && window.ethereum) {
-          console.log("Using standard browser provider (window.ethereum)");
+          console.log("Using standard browser provider");
           const provider = window.ethereum;
           
-          // Create wallet client
-          const walletClient = createWalletClient({
-            chain: base,
-            transport: custom(provider)
-          });
-
-          // Request accounts
-          const addresses = await walletClient.requestAddresses();
+          // Check for existing accounts first
+          const accounts = await provider.request({ method: 'eth_accounts' });
           
-          if (addresses && addresses.length > 0) {
-            const connectedAddr = addresses[0];
+          if (accounts && accounts.length > 0) {
+            const connectedAddr = accounts[0];
             address.value = connectedAddr;
             isConnected.value = true;
+            saveConnectionState();
             
             // Fetch balances
             fetchEthBalance(connectedAddr);
@@ -150,6 +191,19 @@ export const WalletConnect = component$(() => {
             }
             
             console.log('Automatically connected to browser wallet:', connectedAddr);
+          } else if (wasConnected && savedAddress) {
+            // If we have a saved connection but no active accounts, try to reconnect
+            try {
+              await provider.request({ method: 'eth_requestAccounts' });
+              address.value = savedAddress;
+              isConnected.value = true;
+              saveConnectionState();
+              fetchEthBalance(savedAddress);
+              fetchUsdcBalance(savedAddress);
+            } catch (err) {
+              console.error('Error reconnecting:', err);
+              clearConnectionState();
+            }
           }
         }
       } catch (err) {
@@ -162,24 +216,26 @@ export const WalletConnect = component$(() => {
 
     // Set up event listeners for account changes
     const setupEventListeners = () => {
-      const ethereum = (window.frame?.ethereum || window.ethereum) as EthereumProvider | undefined;
+      const provider = sdk?.wallet?.ethProvider || window.ethereum;
       
-      if (ethereum) {
-        ethereum.on('accountsChanged', (accounts: string[]) => {
+      if (provider) {
+        provider.on('accountsChanged', (accounts: readonly `0x${string}`[]) => {
           if (accounts.length > 0) {
             address.value = accounts[0];
             isConnected.value = true;
+            saveConnectionState();
             fetchEthBalance(accounts[0]);
             fetchUsdcBalance(accounts[0]);
           } else {
             address.value = '';
             isConnected.value = false;
+            clearConnectionState();
             ethBalance.value = '';
             usdcBalance.value = '';
           }
         });
 
-        ethereum.on('chainChanged', (chainIdHex: string) => {
+        provider.on('chainChanged', (chainIdHex: string) => {
           chainId.value = parseInt(chainIdHex, 16);
           if (address.value) {
             fetchEthBalance(address.value);
@@ -194,9 +250,10 @@ export const WalletConnect = component$(() => {
 
     // Cleanup function
     cleanup(() => {
-      const ethereum = (window.frame?.ethereum || window.ethereum) as EthereumProvider | undefined;
-      if (ethereum) {
-        ethereum.removeAllListeners?.();
+      const provider = sdk?.wallet?.ethProvider || window.ethereum;
+      if (provider) {
+        provider.removeListener?.('accountsChanged', () => {});
+        provider.removeListener?.('chainChanged', () => {});
       }
     });
   });
@@ -206,20 +263,27 @@ export const WalletConnect = component$(() => {
     let provider: any | undefined = undefined;
     let environment: string = "";
 
-    // 1. First try to get the Frame SDK wallet provider
-    if (sdk && sdk.wallet && sdk.wallet.ethProvider) {
-      console.log("Using Farcaster Frame SDK provider (sdk.wallet.ethProvider)");
-      provider = sdk.wallet.ethProvider;
-      environment = "Frame";
-    } 
-    // 2. If not in Frame, try standard browser provider
-    else if (typeof window !== 'undefined' && window.ethereum) {
-      console.log("Using standard browser provider (window.ethereum)");
+    // Check if we're in a Frame context
+    const isInFrame = typeof window !== 'undefined' && (window as unknown as FrameWindow).frame?.sdk;
+
+    if (isInFrame) {
+      // Try to get the Frame SDK wallet provider
+      const frameSDK = (window as unknown as FrameWindow).frame?.sdk;
+      if (frameSDK?.wallet?.ethProvider) {
+        console.log("Using Farcaster Frame SDK provider");
+        provider = frameSDK.wallet.ethProvider;
+        environment = "Frame";
+      }
+    }
+    
+    // If not in Frame or Frame SDK not available, try standard browser provider
+    if (!provider && typeof window !== 'undefined' && window.ethereum) {
+      console.log("Using standard browser provider");
       provider = window.ethereum;
       environment = "Desktop";
     }
 
-    // 3. If a provider was found, try to connect
+    // If a provider was found, try to connect
     if (provider) {
       try {
         // Create wallet client with the appropriate chain
@@ -258,14 +322,14 @@ export const WalletConnect = component$(() => {
         isConnected.value = false;
       }
     } 
-    // 4. If no provider found
+    // If no provider found
     else {
-      console.error('No wallet provider found (Frame SDK or window.ethereum).');
+      console.error('No wallet provider found.');
       error.value = 'Cannot connect wallet. No provider found. If on desktop, install MetaMask. If in a Farcaster app, ensure it supports wallet connections.';
     }
   });
   
-  // Send a simple transaction - this is just a demo
+  // Send USDC transaction
   const sendTransaction = $(async () => {
     if (!isConnected.value) {
       error.value = 'Please connect your wallet first';
@@ -280,22 +344,62 @@ export const WalletConnect = component$(() => {
     }
     
     try {
-      const txParams = {
-        to: '0x0000000000000000000000000000000000000000', // Example: send to address zero
-        value: '0x0', // Example: 0 ETH
-        data: '0x', // Example: no data
-      };
-      
-      // Request transaction signature
-      const txHash = await ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [txParams],
+      // Create wallet client
+      const walletClient = createWalletClient({
+        chain: base,
+        transport: custom(ethereum)
+      });
+
+      // Amount in USDC (0.01 USDC = 10000 because USDC has 6 decimals)
+      const amount = BigInt(10000); // 0.01 USDC
+
+      // Check if we already have accounts
+      const accounts = await ethereum.request({ method: 'eth_accounts' });
+      if (!accounts || accounts.length === 0) {
+        // Only request new connection if we don't have any accounts
+        try {
+          await ethereum.request({
+            method: 'eth_requestAccounts'
+          });
+        } catch (err) {
+          console.error('Error requesting accounts:', err);
+          error.value = 'Please approve the wallet connection request';
+          return;
+        }
+      }
+
+      // Send USDC transfer transaction
+      const hash = await walletClient.writeContract({
+        address: USDC_CONTRACT as `0x${string}`,
+        abi: [
+          {
+            inputs: [
+              { name: 'to', type: 'address' },
+              { name: 'amount', type: 'uint256' }
+            ],
+            name: 'transfer',
+            outputs: [{ name: '', type: 'bool' }],
+            stateMutability: 'nonpayable',
+            type: 'function',
+          },
+        ],
+        functionName: 'transfer',
+        args: [address.value as `0x${string}`, amount],
+        account: address.value as `0x${string}`,
       });
       
-      console.log('Transaction sent:', txHash);
+      console.log('Transaction sent:', hash);
+      
+      // Update balances after successful transaction
+      fetchUsdcBalance(address.value);
+      
     } catch (err: any) {
       console.error('Error sending transaction:', err);
-      error.value = err.message || 'Failed to send transaction';
+      if (err.message?.includes('authorized')) {
+        error.value = 'Please approve the transaction in your wallet';
+      } else {
+        error.value = err.message || 'Failed to send transaction';
+      }
     }
   });
   

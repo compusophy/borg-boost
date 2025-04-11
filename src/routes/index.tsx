@@ -1,6 +1,27 @@
 import { component$, useVisibleTask$, useSignal, useStyles$, $, useStore } from "@builder.io/qwik";
 import type { DocumentHead } from "@builder.io/qwik-city";
+import { WalletConnect } from "~/components/wallet-connect";
 
+// This is our application URL - change this to your own domain when deploying
+const appUrl = "https://compu-borg-boost.vercel.app";
+
+// Farcaster Frame meta configuration
+const frame = {
+  version: "next",
+  imageUrl: `${appUrl}/image.png`,
+  button: {
+    title: "Borg Boost",
+    action: {
+      type: "launch_frame",
+      name: "Borg Boost", 
+      url: appUrl,
+      splashImageUrl: `${appUrl}/icon.png`,
+      splashBackgroundColor: "#000000",
+    },
+  },
+};
+
+// Original component with performance metrics
 interface PerformanceMetrics {
   pageLoadTime?: number;
   fcp?: number; // First Contentful Paint
@@ -122,6 +143,13 @@ export default component$(() => {
     }
     .reload-button:hover {
       background-color: #0060df;
+    }
+    .wallet-section {
+      margin-top: 2rem;
+      padding: 1rem;
+      border: 1px solid #eaeaea;
+      border-radius: 8px;
+      background-color: #f8f8f8;
     }
   `);
 
@@ -253,21 +281,15 @@ export default component$(() => {
   });
 
   return (
-    <>
+    <div>
       <div class="page-header">
-        <h1>Hi 👋</h1>
-        <button 
-          class="reload-button" 
-          onClick$={() => window.location.reload()}
-        >
-          ↻ Reload Page
+        <h1>Borg Boost</h1>
+        <button class="reload-button" onClick$={() => window.location.reload()}>
+          Reload
         </button>
       </div>
-      <div>
-        Can't wait to see what you build with CQS!
-        <br />
-        Happy coding.
-      </div>
+
+      <WalletConnect />
 
       <div class="demo-container">
         <h3>⚡ Resumability & Lazy Loading</h3>
@@ -350,26 +372,9 @@ const stats = bundleStats$();
           </>
         )}
       </div>
-    </>
+    </div>
   );
 });
-
-const appUrl = "https://compu-borg-boost.vercel.app";
-
-const frame = {
-  version: "next",
-  imageUrl: `${appUrl}/image.png`,
-  button: {
-    title: "Borg Boost",
-    action: {
-      type: "launch_frame",
-      name: "Borg Boost", 
-      url: appUrl,
-      splashImageUrl: `${appUrl}/icon.png`,
-      splashBackgroundColor: "#000000",
-    },
-  },
-};
 
 export const head: DocumentHead = {
   title: "Borg Boost",
@@ -388,7 +393,7 @@ export const head: DocumentHead = {
     },
     {
       property: "og:image",
-      content: `${appUrl}/icon.jpg`,
+      content: `${appUrl}/icon.png`,
     },
     {
       property: "fc:frame",

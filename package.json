@@ -27,5 +27,11 @@
     "vercel": "^29.1.1",
     "vite": "5.3.5",
     "vite-tsconfig-paths": "^4.2.1"
+  },
+  "dependencies": {
+    "@farcaster/frame-sdk": "^0.0.34",
+    "optional": "^0.1.4",
+    "sharp": "^0.34.1",
+    "viem": "^2.26.3"
   }
 }

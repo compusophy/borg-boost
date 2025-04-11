@@ -64,92 +64,137 @@ export const LazyDemo = component$(() => {
 
 export default component$(() => {
   const metrics = useSignal<PerformanceMetrics>({});
+  const showAdmin = useSignal(false);
   const showMetrics = useSignal(false);
   const showDemo = useSignal(false);
   
   useStyles$(`
-    .metrics-container, .demo-container {
-      margin-top: 2rem;
-      padding: 1rem;
-      border: 1px solid #eaeaea;
-      border-radius: 8px;
-      background-color: #f8f8f8;
+    :global(body) {
+      margin: 0;
+      padding: 0;
+      background-color: #fafafa;
+      color: #333;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .admin-section {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .admin-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .admin-content {
+      display: none;
+    }
+
+    .admin-content.visible {
+      display: block;
+    }
+
+    .metrics-container, .demo-container {
+      margin-top: 1.5rem;
+      padding: 1.5rem;
+      background: #f8f8f8;
+      border-radius: 8px;
+    }
+
     .metrics-list {
       list-style: none;
       padding: 0;
+      margin: 0;
     }
+
     .metrics-list li {
-      padding: 0.5rem 0;
-      border-bottom: 1px dashed #eaeaea;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #eee;
     }
-    .bundle-info {
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid #eaeaea;
+
+    .metrics-list li:last-child {
+      border-bottom: none;
     }
-    pre {
-      background-color: #eaeaea;
-      padding: 0.5rem;
-      overflow-x: auto;
-      border-radius: 4px;
-    }
+
     button {
-      background-color: #0070f3;
+      background-color: #000;
       color: white;
       border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
       cursor: pointer;
-      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
     }
+
     button:hover {
-      background-color: #0060df;
+      background-color: #333;
+      transform: translateY(-1px);
     }
-    .bundle-size {
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid #eaeaea;
+
+    button:active {
+      transform: translateY(0);
     }
-    .lazy-demo {
-      margin-top: 1rem;
-    }
-    .hint {
-      font-size: 0.8rem;
+
+    .toggle-button {
+      background: none;
+      border: 1px solid #ddd;
       color: #666;
-      font-style: italic;
-    }
-    .resumability-demo {
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid #eaeaea;
-    }
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-    .reload-button {
-      background-color: #0070f3;
-      color: white;
-      border: none;
       padding: 0.5rem 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      margin-right: 0.5rem;
     }
-    .reload-button:hover {
-      background-color: #0060df;
+
+    .toggle-button:hover {
+      background: #f0f0f0;
+      transform: none;
     }
+
+    .toggle-button.active {
+      background: #000;
+      color: white;
+      border-color: #000;
+    }
+
+    .hint {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+
+    .resumability-demo {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #eee;
+    }
+
     .wallet-section {
       margin-top: 2rem;
-      padding: 1rem;
-      border: 1px solid #eaeaea;
-      border-radius: 8px;
-      background-color: #f8f8f8;
+      padding: 1.5rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .chevron {
+      transition: transform 0.2s ease;
+    }
+
+    .chevron.rotated {
+      transform: rotate(90deg);
     }
   `);
 
@@ -164,6 +209,11 @@ export default component$(() => {
     const savedShowMetrics = localStorage.getItem('show-metrics');
     if (savedShowMetrics) {
       showMetrics.value = savedShowMetrics === 'true';
+    }
+    
+    const savedShowAdmin = localStorage.getItem('show-admin');
+    if (savedShowAdmin) {
+      showAdmin.value = savedShowAdmin === 'true';
     }
     
     // Helper function for robust scroll restoration
@@ -281,96 +331,75 @@ export default component$(() => {
   });
 
   return (
-    <div>
-      <div class="page-header">
-        <h1>Borg Boost</h1>
-        <button class="reload-button" onClick$={() => window.location.reload()}>
-          Reload
-        </button>
-      </div>
-
+    <div class="container">
       <WalletConnect />
 
-      <div class="demo-container">
-        <h3>⚡ Resumability & Lazy Loading</h3>
-        <button onClick$={() => {
-          showDemo.value = !showDemo.value;
-          localStorage.setItem('show-demo', showDemo.value.toString());
-        }}>
-          {showDemo.value ? 'Hide Demo' : 'Show Demo'}
-        </button>
+      <div class="admin-section">
+        <div 
+          class="admin-header"
+          onClick$={() => {
+            showAdmin.value = !showAdmin.value;
+            localStorage.setItem('show-admin', showAdmin.value.toString());
+          }}
+        >
+          <span class={`chevron ${showAdmin.value ? 'rotated' : ''}`}>▶</span>
+          <h3>Admin</h3>
+        </div>
 
-        {showDemo.value && (
-          <>
-            <div class="resumability-demo">
-              <h4>Resumability</h4>
-              <p>
-                Qwik serializes the app state and event listeners, allowing it to "resume" 
-                where the server left off without needing to re-execute initialization code.
-              </p>
-              <p>
-                Try refreshing this page - notice how quickly it loads without 
-                executing JavaScript to rebuild the UI state!
-              </p>
-            </div>
+        <div class={`admin-content ${showAdmin.value ? 'visible' : ''}`}>
+          <div class="demo-container">
+            <button 
+              class={`toggle-button ${showDemo.value ? 'active' : ''}`}
+              onClick$={() => {
+                showDemo.value = !showDemo.value;
+                localStorage.setItem('show-demo', showDemo.value.toString());
+              }}
+            >
+              {showDemo.value ? 'Hide Demo' : 'Show Demo'}
+            </button>
+
+            {showDemo.value && (
+              <>
+                <div class="resumability-demo">
+                  <h4>Resumability</h4>
+                  <p>
+                    Qwik serializes the app state and event listeners, allowing it to "resume" 
+                    where the server left off without needing to re-execute initialization code.
+                  </p>
+                  <p>
+                    Try refreshing this page - notice how quickly it loads without 
+                    executing JavaScript to rebuild the UI state!
+                  </p>
+                </div>
+                
+                <LazyDemo />
+              </>
+            )}
+          </div>
+
+          <div class="metrics-container">
+            <button 
+              class={`toggle-button ${showMetrics.value ? 'active' : ''}`}
+              onClick$={() => {
+                showMetrics.value = !showMetrics.value;
+                localStorage.setItem('show-metrics', showMetrics.value.toString());
+              }}
+            >
+              {showMetrics.value ? 'Hide Metrics' : 'Show Metrics'}
+            </button>
             
-            <LazyDemo />
-          </>
-        )}
-      </div>
-
-      <div class="metrics-container">
-        <h3>📊 Performance</h3>
-        <button onClick$={() => {
-          showMetrics.value = !showMetrics.value;
-          localStorage.setItem('show-metrics', showMetrics.value.toString());
-        }}>
-          {showMetrics.value ? 'Hide Metrics' : 'Show Metrics'}
-        </button>
-        
-        {showMetrics.value && (
-          <>
-            <ul class="metrics-list">
-              <li>Page Load Time: {Math.round(metrics.value.pageLoadTime || 0)}ms</li>
-              <li>First Contentful Paint: {Math.round(metrics.value.fcp || 0)}ms</li>
-              <li>Time to First Byte: {Math.round(metrics.value.ttfb || 0)}ms</li>
-              {metrics.value.lcp && <li>Largest Contentful Paint: {Math.round(metrics.value.lcp)}ms</li>}
-              {metrics.value.cls && <li>Cumulative Layout Shift: {metrics.value.cls.toFixed(3)}</li>}
-              {metrics.value.fid && <li>First Input Delay: {Math.round(metrics.value.fid)}ms</li>}
-            </ul>
-            
-            <div class="bundle-size">
-              <h4>Bundle Size Analysis</h4>
-              <p>To view your bundle size information:</p>
-              <ol>
-                <li>Run <code>npm run build</code> in your terminal</li>
-                <li>Review the output for bundle size information</li>
-                <li>For detailed analysis, use <code>npm run build.analyze</code> (if configured in your package.json)</li>
-              </ol>
-              <p>For more detailed analysis, you can install <code>@builder.io/qwik-labs</code> and use:</p>
-              <pre>
-{`import { bundleStats$ } from '@builder.io/qwik-labs';
-
-// Add to your component:
-const stats = bundleStats$();
-
-// Then display stats.value in your component`}
-              </pre>
-            </div>
-            
-            <div class="bundle-info">
-              <h4>Symbol Usage</h4>
-              <p>To collect symbol usage, add this code to your debug build:</p>
-              <pre>
-{`<script>
-  window.symbols = [];
-  document.addEventListener('qsymbol', (e) => window.symbols.push(e.detail));
-</script>`}
-              </pre>
-              <p>Then run <code>console.log(window.symbols)</code> in the browser console.</p>
-            </div>
-          </>
-        )}
+            {showMetrics.value && (
+              <ul class="metrics-list">
+                <li>Page Load Time: {Math.round(metrics.value.pageLoadTime || 0)}ms</li>
+                <li>First Contentful Paint: {Math.round(metrics.value.fcp || 0)}ms</li>
+                <li>Time to First Byte: {Math.round(metrics.value.ttfb || 0)}ms</li>
+                {metrics.value.lcp && <li>Largest Contentful Paint: {Math.round(metrics.value.lcp)}ms</li>}
+                {metrics.value.cls && <li>Cumulative Layout Shift: {metrics.value.cls.toFixed(3)}</li>}
+                {metrics.value.fid && <li>First Input Delay: {Math.round(metrics.value.fid)}ms</li>}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

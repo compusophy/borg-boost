@@ -39,27 +39,44 @@ export const WalletConnect = component$(() => {
   // Get the frame SDK instance
   const getFrameSDK = $(() => {
     if (typeof window !== 'undefined') {
-      return (window as unknown as FrameWindow).frame?.sdk;
+      const frameSDK = (window as unknown as FrameWindow).frame?.sdk;
+      console.log('Frame SDK found:', !!frameSDK);
+      return frameSDK;
     }
     return undefined;
   });
 
   // Get the provider
   const getProvider = $(async () => {
-    // First check if we're in a frame context
-    const frameSDK = await getFrameSDK();
-    if (frameSDK?.wallet?.ethProvider) {
-      console.log("Using Farcaster Frame SDK provider");
-      return frameSDK.wallet.ethProvider;
+    try {
+      // First check if we're in a frame context
+      const frameSDK = await getFrameSDK();
+      if (frameSDK?.wallet?.ethProvider) {
+        console.log("Using Farcaster Frame SDK provider");
+        return frameSDK.wallet.ethProvider;
+      }
+      
+      // Fall back to standard browser provider
+      if (typeof window !== 'undefined' && window.ethereum) {
+        console.log("Using standard browser provider");
+        return window.ethereum;
+      }
+
+      // Check for injected providers
+      if (typeof window !== 'undefined') {
+        const injectedProviders = (window as any).ethereum?.providers || [];
+        if (injectedProviders.length > 0) {
+          console.log("Using injected provider");
+          return injectedProviders[0];
+        }
+      }
+      
+      console.log("No provider found");
+      return undefined;
+    } catch (err) {
+      console.error("Error getting provider:", err);
+      return undefined;
     }
-    
-    // Fall back to standard browser provider
-    if (typeof window !== 'undefined' && window.ethereum) {
-      console.log("Using standard browser provider");
-      return window.ethereum;
-    }
-    
-    return undefined;
   });
 
   // Function to save connection state
@@ -81,8 +98,11 @@ export const WalletConnect = component$(() => {
   // Function to fetch ETH balance
   const fetchEthBalance = $(async (address: string) => {
     try {
-      const provider = sdk?.wallet?.ethProvider || window.ethereum;
-      if (!provider) return;
+      const provider = await getProvider();
+      if (!provider) {
+        console.error('No provider available for balance check');
+        return;
+      }
 
       const publicClient = createPublicClient({
         chain: base,
@@ -103,8 +123,11 @@ export const WalletConnect = component$(() => {
   // Function to fetch USDC balance
   const fetchUsdcBalance = $(async (address: string) => {
     try {
-      const provider = sdk?.wallet?.ethProvider || window.ethereum;
-      if (!provider) return;
+      const provider = await getProvider();
+      if (!provider) {
+        console.error('No provider available for USDC balance check');
+        return;
+      }
 
       const publicClient = createPublicClient({
         chain: base,
@@ -138,53 +161,63 @@ export const WalletConnect = component$(() => {
   useVisibleTask$(({ cleanup }) => {
     const checkExistingConnection = async () => {
       try {
+        console.log('Checking for existing connection...');
+        
         // Check localStorage first
         const wasConnected = typeof window !== 'undefined' && localStorage.getItem('walletConnected') === 'true';
         const savedAddress = typeof window !== 'undefined' ? localStorage.getItem('walletAddress') : null;
+        
+        console.log('Previous connection state:', { wasConnected, savedAddress });
 
         // Get the provider
         const provider = await getProvider();
         if (!provider) {
           console.log("No provider found");
+          error.value = 'No wallet provider found. Please install MetaMask or use a Farcaster app.';
           return;
         }
 
         // Check for existing accounts first
         const accounts = await provider.request({ method: 'eth_accounts' });
+        console.log('Found accounts:', accounts);
         
         if (accounts && accounts.length > 0) {
           const connectedAddr = accounts[0];
+          console.log('Found connected account:', connectedAddr);
+          
           address.value = connectedAddr;
           isConnected.value = true;
           saveConnectionState();
           
           // Fetch balances
-          fetchEthBalance(connectedAddr);
-          fetchUsdcBalance(connectedAddr);
+          await fetchEthBalance(connectedAddr);
+          await fetchUsdcBalance(connectedAddr);
           
           // Get chain ID
           const chainIdHex = await provider.request({ method: 'eth_chainId' });
           if (chainIdHex) {
             chainId.value = parseInt(chainIdHex, 16);
+            console.log('Connected to chain:', chainId.value);
           }
-          
-          console.log('Automatically connected to wallet:', connectedAddr);
         } else if (wasConnected && savedAddress) {
+          console.log('Attempting to reconnect to saved address:', savedAddress);
           // If we have a saved connection but no active accounts, try to reconnect
           try {
             await provider.request({ method: 'eth_requestAccounts' });
             address.value = savedAddress;
             isConnected.value = true;
             saveConnectionState();
-            fetchEthBalance(savedAddress);
-            fetchUsdcBalance(savedAddress);
+            await fetchEthBalance(savedAddress);
+            await fetchUsdcBalance(savedAddress);
           } catch (err) {
             console.error('Error reconnecting:', err);
+            error.value = 'Failed to reconnect to wallet. Please try connecting again.';
             clearConnectionState();
           }
         }
       } catch (err) {
         console.error('Error checking existing connection:', err);
+        error.value = 'Error checking wallet connection. Please try again.';
       }
     };
 
@@ -196,7 +229,10 @@ export const WalletConnect = component$(() => {
       const provider = await getProvider();
       
       if (provider) {
+        console.log('Setting up wallet event listeners');
+        
         provider.on('accountsChanged', (accounts: readonly `0x${string}`[]) => {
+          console.log('Accounts changed:', accounts);
           if (accounts.length > 0) {
             address.value = accounts[0];
             isConnected.value = true;
@@ -213,6 +249,7 @@ export const WalletConnect = component$(() => {
         });
 
         provider.on('chainChanged', (chainIdHex: string) => {
+          console.log('Chain changed:', chainIdHex);
           chainId.value = parseInt(chainIdHex, 16);
           if (address.value) {
             fetchEthBalance(address.value);
@@ -229,6 +266,7 @@ export const WalletConnect = component$(() => {
     cleanup(async () => {
       const provider = await getProvider();
       if (provider) {
+        console.log('Cleaning up wallet event listeners');
         // Remove specific event listeners instead of all listeners
         provider.on('accountsChanged', () => {});
         provider.on('chainChanged', () => {});
@@ -238,72 +276,48 @@ export const WalletConnect = component$(() => {
   
   // Connect wallet function
   const connectWallet = $(async () => {
-    let provider: any | undefined = undefined;
-    let environment: string = "";
-
-    // Check if we're in a Frame context
-    const frameSDK = await getFrameSDK();
-    const isInFrame = frameSDK?.wallet?.ethProvider;
-
-    if (isInFrame) {
-      // Try to get the Frame SDK wallet provider
-      if (frameSDK?.wallet?.ethProvider) {
-        console.log("Using Farcaster Frame SDK provider");
-        provider = frameSDK.wallet.ethProvider;
-        environment = "Frame";
+    try {
+      isConnecting.value = true;
+      error.value = '';
+      
+      console.log('Starting wallet connection...');
+      
+      const provider = await getProvider();
+      if (!provider) {
+        error.value = 'No wallet provider found. Please install MetaMask or use a Farcaster app.';
+        isConnecting.value = false;
+        return;
       }
-    }
-    
-    // If not in Frame or Frame SDK not available, try standard browser provider
-    if (!provider && typeof window !== 'undefined' && window.ethereum) {
-      console.log("Using standard browser provider");
-      provider = window.ethereum;
-      environment = "Desktop";
-    }
 
-    // If a provider was found, try to connect
-    if (provider) {
-      try {
-        // Create wallet client with the appropriate chain
-        const walletClient = createWalletClient({
-          chain: base, // Use Base chain
-          transport: custom(provider)
-        });
-
-        // Request accounts
-        const addresses = await walletClient.requestAddresses();
+      console.log('Requesting accounts...');
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      
+      if (accounts && accounts.length > 0) {
+        const connectedAddr = accounts[0];
+        console.log('Connected to account:', connectedAddr);
         
-        if (addresses && addresses.length > 0) {
-          const connectedAddr = addresses[0];
-          address.value = connectedAddr;
-          isConnected.value = true;
-          
-          // Fetch balances immediately after connecting
-          fetchEthBalance(connectedAddr);
-          fetchUsdcBalance(connectedAddr);
-          
-          // Get chain ID
-          const chainIdHex = await provider.request({ method: 'eth_chainId' });
-          if (chainIdHex) {
-            chainId.value = parseInt(chainIdHex, 16);
-          }
-          
-          console.log(`Wallet connected via ${environment}:`, connectedAddr);
-        } else {
-          console.error(`No addresses returned from ${environment} wallet.`);
-          error.value = `Could not get address via ${environment}. Ensure wallet is connected properly.`;
+        address.value = connectedAddr;
+        isConnected.value = true;
+        saveConnectionState();
+        
+        // Fetch balances
+        await fetchEthBalance(connectedAddr);
+        await fetchUsdcBalance(connectedAddr);
+        
+        // Get chain ID
+        const chainIdHex = await provider.request({ method: 'eth_chainId' });
+        if (chainIdHex) {
+          chainId.value = parseInt(chainIdHex, 16);
+          console.log('Connected to chain:', chainId.value);
         }
-      } catch (error: any) {
-        console.error(`Error connecting wallet via ${environment}:`, error);
-        error.value = `Error connecting via ${environment}: ${error.message || error}`;
-        address.value = '';
-        isConnected.value = false;
+      } else {
+        error.value = 'No accounts found. Please try again.';
       }
-    } 
-    // If no provider found
-    else {
-      console.error('No wallet provider found.');
-      error.value = 'Cannot connect wallet. No provider found. If on desktop, install MetaMask. If in a Farcaster app, ensure it supports wallet connections.';
+    } catch (err: any) {
+      console.error('Error connecting wallet:', err);
+      error.value = err.message || 'Failed to connect wallet. Please try again.';
+    } finally {
+      isConnecting.value = false;
     }
   });
   
